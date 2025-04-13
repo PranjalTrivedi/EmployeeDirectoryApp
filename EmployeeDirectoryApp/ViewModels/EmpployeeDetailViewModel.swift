@@ -5,71 +5,35 @@
 //  Created by Pranjal Trivedi on 2025-04-13.
 //
 
-import Foundation
 import SwiftUI
+import UIKit
 
 class EmployeeDetailViewModel: ObservableObject {
-    @Published var isLoadingImage = false
     @Published var image: UIImage?
-    @Published var error: NetworkError?
-    
     private let employee: Employee
-    private let cache: CacheManagerProtocol
+    private let cache = ImageCache.shared
     
-    init(employee: Employee, cache: CacheManagerProtocol = CacheManager.shared) {
+    init(employee: Employee) {
         self.employee = employee
-        self.cache = cache
     }
     
-    var name: String { employee.fullName }
-    var phone: String? { employee.phoneNumber }
-    var email: String { employee.emailAddress }
-    var biography: String? { employee.biography }
-    var team: String { employee.team }
-    var employeeType: String { employee.employeeType.displayName }
-    
     func loadImage() {
-        guard let photoUrl = employee.photoUrlLarge else {
-            return
-        }
+        guard let urlString = employee.photoUrlLarge else { return }
         
-        // Check cache first
-        if let cachedImage = cache.getImage(for: photoUrl) {
+        if let cachedImage = cache.getImage(for: urlString) {
             self.image = cachedImage
             return
         }
         
-        isLoadingImage = true
-        error = nil
+        guard let url = URL(string: urlString) else { return }
         
-        Task {
-            do {
-                guard let url = URL(string: photoUrl) else {
-                    throw NetworkError.invalidURL
-                }
-                
-                let (data, _) = try await URLSession.shared.data(from: url)
-                
-                if let uiImage = UIImage(data: data) {
-                    await MainActor.run {
-                        self.image = uiImage
-                        self.cache.saveImage(uiImage, for: photoUrl)
-                        self.isLoadingImage = false
-                    }
-                } else {
-                    throw NetworkError.invalidData
-                }
-            } catch let error as NetworkError {
-                await MainActor.run {
-                    self.error = error
-                    self.isLoadingImage = false
-                }
-            } catch {
-                await MainActor.run {
-                    self.error = .unknown
-                    self.isLoadingImage = false
+        URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
+            if let data = data, let image = UIImage(data: data) {
+                self?.cache.saveImage(image, for: urlString)
+                DispatchQueue.main.async {
+                    self?.image = image
                 }
             }
-        }
+        }.resume()
     }
 }

@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import SwiftUI
 
 class EmployeeListViewModel: ObservableObject {
     @Published var employees: [Employee] = []
@@ -14,11 +13,7 @@ class EmployeeListViewModel: ObservableObject {
     @Published var error: NetworkError?
     @Published var searchText = ""
     
-    private let employeeService: EmployeeServiceProtocol
-    
-    init(employeeService: EmployeeServiceProtocol = EmployeeService()) {
-        self.employeeService = employeeService
-    }
+    private let employeeService = EmployeeService() // Use concrete service
     
     var filteredEmployees: [Employee] {
         if searchText.isEmpty {

@@ -7,28 +7,15 @@
 
 import Foundation
 
-protocol EmployeeServiceProtocol {
-    func fetchEmployees() async throws -> [Employee]
-}
-
-class EmployeeService: EmployeeServiceProtocol {
+class EmployeeService {
     private let urlString = "https://s3.amazonaws.com/sq-mobile-interview/employees.json"
-    private let malformedUrlString = "https://s3.amazonaws.com/sq-mobile-interview/employees_malformed.json"
-    private let emptyUrlString = "https://s3.amazonaws.com/sq-mobile-interview/employees_empty.json"
-    
-    private let cache: CacheManagerProtocol
-    
-    init(cache: CacheManagerProtocol = CacheManager.shared) {
-        self.cache = cache
-    }
+    private let cache = ImageCache.shared // Changed from CacheManager to ImageCache
     
     func fetchEmployees() async throws -> [Employee] {
-        // Check cache first
         if let cachedEmployees = cache.getEmployees(), !cachedEmployees.isEmpty {
             return cachedEmployees
         }
         
-        // Fetch from network
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
@@ -41,8 +28,7 @@ class EmployeeService: EmployeeServiceProtocol {
         }
         
         do {
-            let decoder = JSONDecoder()
-            let response = try decoder.decode(EmployeesResponse.self, from: data)
+            let response = try JSONDecoder().decode(EmployeesResponse.self, from: data)
             cache.saveEmployees(response.employees)
             return response.employees
         } catch {
